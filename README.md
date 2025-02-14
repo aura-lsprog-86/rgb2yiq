@@ -20,19 +20,19 @@ Get and set up
 2. Clone this repository to any directory desired.
 3. Go to the directory of step 2, then create an environment with the following command:
 
-    $ python -m venv env
+       $ python -m venv env
 
 4. Go into the environment with the following command:
 
-    $ source env/bin/activate
+       $ source env/bin/activate
 
 5. Install the required dependencies with the following command:
 
-    $ python -m pip install -r requirements.txt
+       $ python -m pip install -r requirements.txt
 
 6. Once installed, grant execution permissions to the script with the following command:
 
-    $ chmod u+x rgb2yiq.py
+       $ chmod u+x rgb2yiq.py
 
 7. You are ready to execute the program! check the following section.
 
