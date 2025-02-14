@@ -58,6 +58,7 @@ def smart_close(fp):
 
 class show_license(argparse.Action):
     """ Define custom action that merely prints license information """
+
     def __call__(self, parser, namespace, values, option_string=None):
         print("RGB2YIQ: RGB to YIQ Pillow-based conversion program for Python 3.x")
         print("Copyright (C) 2025, Aura Lesse Programmer\n")
@@ -75,7 +76,37 @@ class show_license(argparse.Action):
         parser.exit()
 
 
+def generate_yiq_v1(img_pix, img_size, quiet):
+    """ Generate YIQ image, v1, given image pixels and size """
+
+    yiq_data = bytearray()
+
+    if quiet is False:
+        print("Writing header information...")
+
+    yiq_data.extend("YIQ1".encode('utf-8'))
+    yiq_data.extend(pack('<LL', *img_size))
+    yiq_data.extend("DATA".encode('utf-8'))
+
+    if quiet is False:
+        print("Processing pixels...")
+    
+    for y in range(0, img_size[1]):
+        for x in range(0, img_size[0]):
+            r, g, b = tuple(i / 255 for i in img_pix[x, y])
+
+            fY = r * 0.30 + g * 0.59 + b * 0.11
+            fI = r * 0.599 - g * 0.2773 - b * 0.3217
+            fQ = r * 0.213 - g * 0.5251 + b * 0.3121
+            
+            yiq_data.extend(pack('<bbb', *(round(i * 100) for i in (fY, fI, fQ))))
+
+    return yiq_data
+
+
 def main():
+    """ Main program entrypoint """
+
     # Get the arguments
     args = parse_args()
 
@@ -100,28 +131,9 @@ def main():
     
     try:
         imgdest = smart_open(f"{args.imgdest}", args.imgdest == "-")
-        
-        if args.quiet is False:
-            print("Writing header information...")
-        
-        imgdest.write("YIQ1".encode('utf-8'))
-        imgdest.write(pack('<LL', img.size[0], img.size[1]))
-        imgdest.write("DATA".encode('utf-8'))
-        
         pix = img_rgb.load()
 
-        if args.quiet is False:
-            print("Processing pixels...")
-        
-        for y in range(0, img.size[1]):
-            for x in range(0, img.size[0]):
-                r, g, b = tuple(i / 255 for i in pix[x, y])
-
-                fY = r * 0.30 + g * 0.59 + b * 0.11
-                fI = r * 0.599 - g * 0.2773 - b * 0.3217
-                fQ = r * 0.213 - g * 0.5251 + b * 0.3121
-                
-                imgdest.write(pack('<bbb', *(round(i * 100) for i in (fY, fI, fQ))))
+        imgdest.write(generate_yiq_v1(pix, img.size, args.quiet))
         
         smart_close(imgdest)
         
