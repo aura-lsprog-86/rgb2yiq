@@ -2,7 +2,7 @@ rgb2yiq
 =======
 
 RGB to YIQ PIL-based image converter for Python 3.x
-Copyright (C) 2014	sm-programmer
+Copyright (C) 2025, Aura Lesse Programmer
 
 Objective
 =========
@@ -13,43 +13,65 @@ YIQ files are interesting when it comes to obtaining compatible B/W images with 
 
 This small program demonstrates its usefulness as it only requires Pillow and a Python 3 interpreter to run properly.
 
+Get and set up
+==============
+
+1. Ensure you have, at least, Python 3.7 installed.
+2. Clone this repository to any directory desired.
+3. Go to the directory of step 2, then create an environment with the following command:
+
+    $ python -m venv env
+
+4. Go into the environment with the following command:
+
+    $ source env/bin/activate
+
+5. Install the required dependencies with the following command:
+
+    $ python -m pip install -r requirements.txt
+
+6. Once installed, grant execution permissions to the script with the following command:
+
+    $ chmod u+x rgb2yiq.py
+
+7. You are ready to execute the program! check the following section.
+
 How to use
 ==========
 
 From a terminal, type the following:
 
-python3 rgb2yiq.py [-h] [-q] [-v] [-l] infile [outfile]
+    ./rgb2yiq.py [-h] [-q] [-v] [-l] infile [outfile]
 
-- Option -h displays a help message.
-- Option -q prevents messages from appearing (only outputs errors).
-- Option -v prints version number.
-- Option -l shows license information.
-- Mandatory argument `infile' is the input filename
-- Optional argument `outfile' is the output file (ommitting it sends output to stdout).
+- Option `-h` displays a help message.
+- Option `-q` prevents messages from appearing (only outputs errors).
+- Option `-v` prints version number.
+- Option `-l` shows license information.
+- Mandatory argument `infile` is the input filename
+- Optional argument `outfile` is the output file (ommitting it sends output to stdout).
 
 It currently supports any image type supported by Pillow.
 
-When the program generates a file as output, it is named `outfile.yiq', with the structure described below. The structure is used as well when outputting to stdout.
+When the program generates a file as output, it can either stream it to standard output (if no `outfile` is given), or write it to the file whose name is given as `outfile`.
 
 File structure
 ==============
 
-The first 4 bytes indicate filetype magic number (the string 'YIQ1' is used for valid YIQ images).
+A YIQ file has the following structure, regardless of where it has been written (to a file or standard output).
 
-Following the magic number, width and height of the image are stored (4 bytes each).
-
-Then comes the string 'DATA' (4 bytes long), indicating where the actual YIQ data starts.
-
-Finally, in sequential order, triplets of (Y, I, Q) values are stored for each point in the image, ajusted to the following:
-
-- Y value is stored as an integer, 0 <= Y <= 100
-- I and Q are rounded and stored as integers, 0 <= I, Q <= 255
+1. The first 4 bytes indicate filetype magic number (the string `YIQ1` is used for valid YIQ images).
+2. Following the magic number, width and height of the image are stored as 4-byte, little-endian numbers.
+3. Then comes the string `DATA` (4 bytes long), indicating where the actual YIQ data starts.
+4. Finally, in sequential order, triplets of (Y, I, Q) bytes are stored for each point in the image, ajusted to the following:
+    - Y value is stored as an integer, $0 <= Y <= 100$
+    - I and Q are rounded and stored as integers, $0 <= I, Q <= 255$
 
 To Do
 =====
 
-1. Implement reverse-direction YIQ -> image file.
-2. Allow native compression to generated files (requires changes in file structure). This issue can be partially addressed by sending to stdout and piping to any compression utility like `gzip'.
+1. Implement reverse-direction conversion: from YIQ to image files.
+2. Allow native compression to generated files (requires changes in file structure). This issue can be partially addressed by sending to stdout and piping to any compression utility like `gzip`.
+3. Use `numpy` to vectorize process and allow for faster conversion.
 
 License
 =======
