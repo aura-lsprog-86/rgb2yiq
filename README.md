@@ -2,6 +2,7 @@ rgb2yiq
 =======
 
 RGB to YIQ PIL-based image converter for Python 3.x
+
 Copyright (C) 2025, Aura Lesse Programmer
 
 Objective
