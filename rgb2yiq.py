@@ -115,14 +115,13 @@ def main():
         
         for y in range(0, img.size[1]):
             for x in range(0, img.size[0]):
-                r, g, b = pix[x, y]
-                r /= 255
-                g /= 255
-                b /= 255
+                r, g, b = tuple(i / 255 for i in pix[x, y])
+
                 fY = r * 0.30 + g * 0.59 + b * 0.11
                 fI = r * 0.599 - g * 0.2773 - b * 0.3217
                 fQ = r * 0.213 - g * 0.5251 + b * 0.3121
-                imgdest.write(pack('bbb', round(fY*100), round(fI*100), round(fQ*100)))
+                
+                imgdest.write(pack('bbb', *(round(i * 100) for i in (fY, fI, fQ))))
         
         smart_close(imgdest)
         
