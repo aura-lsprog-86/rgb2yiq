@@ -18,10 +18,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PIL import Image
-from struct import *
 import sys
+import pathlib
 import argparse
+
+from struct import *
+from PIL import Image
 
 version = "1.1.0"
 
@@ -77,54 +79,57 @@ def main():
     # Get the arguments
     args = parse_args()
 
-    # Process files with given arguments
+    # Determine if source image exists
+    imgsrc = pathlib.Path(args.imgsrc)
+    if not imgsrc.is_file():
+        print(f"[ERR] File \"{imgsrc}\" does not exist! Aborting...", file=sys.stderr)
+        exit(1)
+    
+    # Process image with given arguments
+    img = Image.open(imgsrc)
+    if args.quiet is False:
+        print("\nName:", imgsrc)
+        print("Format:", img.format)
+        print("Size:", img.size[0], "X", img.size[1])
+        print("Colour model:", img.mode, "\n")
+    
+    if img.mode == 'RGB':
+        img_rgb = img
+    else:
+        img_rgb = img.convert('RGB')
+    
     try:
-        img = Image.open(args.imgsrc)
+        imgdest = smart_open(f"{args.imgdest}", args.imgdest == "-")
+        
         if args.quiet is False:
-            print("\nName:", args.imgsrc)
-            print("Format:", img.format)
-            print("Size:", img.size[0], "X", img.size[1])
-            print("Colour model:", img.mode, "\n")
+            print("Writing header information...")
         
-        if img.mode == 'RGB':
-            img_rgb = img
-        else:
-            img_rgb = img.convert('RGB')
+        imgdest.write("YIQ1".encode('utf-8'))
+        imgdest.write(pack('LL', img.size[0], img.size[1]))
+        imgdest.write("DATA".encode('utf-8'))
         
-        try:
-            imgdest = smart_open(f"{args.imgdest}.yiq", args.imgdest == "-")
-            
-            if args.quiet is False:
-                print("Writing header information...")
-            
-            imgdest.write("YIQ1".encode('utf-8'))
-            imgdest.write(pack('LL', img.size[0], img.size[1]))
-            imgdest.write("DATA".encode('utf-8'))
-            
-            pix = img_rgb.load()
+        pix = img_rgb.load()
 
-            if args.quiet is False:
-                print("Processing pixels...")
-            
-            for y in range(0, img.size[1]):
-                for x in range(0, img.size[0]):
-                    r, g, b = pix[x, y]
-                    r /= 255
-                    g /= 255
-                    b /= 255
-                    fY = r * 0.30 + g * 0.59 + b * 0.11
-                    fI = r * 0.599 - g * 0.2773 - b * 0.3217
-                    fQ = r * 0.213 - g * 0.5251 + b * 0.3121
-                    imgdest.write(pack('bbb', round(fY*100), round(fI*100), round(fQ*100)))
-            
-            smart_close(imgdest)
-            
-            if args.quiet is False:
-                print("Completed!")
-        except:
-            print("Can't create output file!", file=sys.stderr)
+        if args.quiet is False:
+            print("Processing pixels...")
+        
+        for y in range(0, img.size[1]):
+            for x in range(0, img.size[0]):
+                r, g, b = pix[x, y]
+                r /= 255
+                g /= 255
+                b /= 255
+                fY = r * 0.30 + g * 0.59 + b * 0.11
+                fI = r * 0.599 - g * 0.2773 - b * 0.3217
+                fQ = r * 0.213 - g * 0.5251 + b * 0.3121
+                imgdest.write(pack('bbb', round(fY*100), round(fI*100), round(fQ*100)))
+        
+        smart_close(imgdest)
+        
+        if args.quiet is False:
+            print("Completed!")
     except:
-        print(args.imgsrc, ": image not found", file=sys.stderr)
+        print("Can't create output file!", file=sys.stderr)
 
 
 if __name__ == "__main__":
