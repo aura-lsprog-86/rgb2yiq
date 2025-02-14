@@ -105,7 +105,7 @@ def main():
             print("Writing header information...")
         
         imgdest.write("YIQ1".encode('utf-8'))
-        imgdest.write(pack('LL', img.size[0], img.size[1]))
+        imgdest.write(pack('<LL', img.size[0], img.size[1]))
         imgdest.write("DATA".encode('utf-8'))
         
         pix = img_rgb.load()
@@ -121,7 +121,7 @@ def main():
                 fI = r * 0.599 - g * 0.2773 - b * 0.3217
                 fQ = r * 0.213 - g * 0.5251 + b * 0.3121
                 
-                imgdest.write(pack('bbb', *(round(i * 100) for i in (fY, fI, fQ))))
+                imgdest.write(pack('<bbb', *(round(i * 100) for i in (fY, fI, fQ))))
         
         smart_close(imgdest)
         
