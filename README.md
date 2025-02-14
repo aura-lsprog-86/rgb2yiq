@@ -35,7 +35,7 @@ Get and set up
 
        $ chmod u+x rgb2yiq.py
 
-7. You are ready to execute the program! check the following section.
+7. You are ready to execute the program! Check the following section.
 
 How to use
 ==========
