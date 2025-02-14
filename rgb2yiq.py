@@ -40,12 +40,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def smart_open(fname=None):
+def smart_open(fname, use_stdout=False):
     """ Determine whether output should be a file or stdout """
-    if fname and fname != '-':
-        return open(fname, 'wb')
-    else:
+    if use_stdout:
         return sys.stdout.buffer
+    else:
+        return open(fname, 'wb')
 
 
 def smart_close(fp):
@@ -92,7 +92,7 @@ def main():
             img_rgb = img.convert('RGB')
         
         try:
-            imgdest = smart_open(args.imgdest + '.yiq')
+            imgdest = smart_open(f"{args.imgdest}.yiq", args.imgdest == "-")
             
             if args.quiet is False:
                 print("Writing header information...")
