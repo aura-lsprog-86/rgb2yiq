@@ -19,6 +19,7 @@
 """
 
 import sys
+import logging
 import pathlib
 import argparse
 
@@ -41,6 +42,13 @@ def parse_args():
 
     return parser.parse_args()
 
+
+def configure_logger(quiet):
+    """ Configure logger. """
+    logging.basicConfig(
+        format="[%(levelname)s] %(message)s",
+        level=logging.ERROR if quiet else logging.INFO
+    )
 
 def smart_open(fname, use_stdout=False):
     """ Determine whether output should be a file or stdout """
@@ -76,21 +84,19 @@ class show_license(argparse.Action):
         parser.exit()
 
 
-def generate_yiq_v1(img_pix, img_size, quiet):
+def generate_yiq_v1(img_pix, img_size):
     """ Generate YIQ image, v1, given image pixels and size """
 
     yiq_data = bytearray()
 
-    if quiet is False:
-        print("Writing header information...")
+    logging.info("Writing header information...")
 
     yiq_data.extend("YIQ1".encode('utf-8'))
     yiq_data.extend(pack('<LL', *img_size))
     yiq_data.extend("DATA".encode('utf-8'))
 
-    if quiet is False:
-        print("Processing pixels...")
-    
+    logging.info("Processing pixels...")
+
     for y in range(0, img_size[1]):
         for x in range(0, img_size[0]):
             r, g, b = tuple(i / 255 for i in img_pix[x, y])
@@ -101,6 +107,8 @@ def generate_yiq_v1(img_pix, img_size, quiet):
             
             yiq_data.extend(pack('<bbb', *(round(i * 100) for i in (fY, fI, fQ))))
 
+    logging.info("Image processed!")
+
     return yiq_data
 
 
@@ -110,20 +118,23 @@ def main():
     # Get the arguments
     args = parse_args()
 
+    # Initialize logging facility
+    configure_logger(args.quiet)
+
     # Determine if source image exists
     imgsrc = pathlib.Path(args.imgsrc)
     if not imgsrc.is_file():
-        print(f"[ERR] File \"{imgsrc}\" does not exist! Aborting...", file=sys.stderr)
+        logging.error(f"File \"{imgsrc}\" does not exist! Aborting...")
         exit(1)
     
     # Process image with given arguments
     img = Image.open(imgsrc)
-    if args.quiet is False:
-        print("\nName:", imgsrc)
-        print("Format:", img.format)
-        print("Size:", img.size[0], "X", img.size[1])
-        print("Colour model:", img.mode, "\n")
-    
+
+    logging.info(f"Name: {imgsrc}")
+    logging.info(f"Format: {img.format}")
+    logging.info(f"Size: {img.size[0]} X {img.size[1]}")
+    logging.info(f"Colour model: {img.mode}\n")
+
     if img.mode == 'RGB':
         img_rgb = img
     else:
@@ -133,14 +144,13 @@ def main():
         imgdest = smart_open(f"{args.imgdest}", args.imgdest == "-")
         pix = img_rgb.load()
 
-        imgdest.write(generate_yiq_v1(pix, img.size, args.quiet))
+        imgdest.write(generate_yiq_v1(pix, img.size))
         
         smart_close(imgdest)
         
-        if args.quiet is False:
-            print("Completed!")
+        logging.info("Completed!")
     except:
-        print("Can't create output file!", file=sys.stderr)
+        logging.error("Can't create output file!")
 
 
 if __name__ == "__main__":
