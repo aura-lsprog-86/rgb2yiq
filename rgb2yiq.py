@@ -108,6 +108,40 @@ class show_extensions(argparse.Action):
         parser.exit()
 
 
+def rgb2yiq(fRGB, type):
+    fR, fG, fB = fRGB
+
+    if type == "ntsc-1953":
+        fY = 0.299  * fR + 0.587  * fG + 0.114  * fB
+        fI = 0.5959 * fR - 0.2746 * fG - 0.3213 * fB
+        fQ = 0.2115 * fR - 0.5227 * fG + 0.3112 * fB
+    elif type == "smpte-c":
+        fY = 0.3   * fR + 0.59   * fG + 0.11   * fB
+        fI = 0.599 * fR - 0.2773 * fG - 0.3217 * fB
+        fQ = 0.213 * fR - 0.5251 * fG + 0.3121 * fB
+    else:
+        raise ValueError(f"Conversion method {type} not supported!")
+    
+    return (fY, fI, fQ)
+
+
+def yiq2rgb(fYIQ, type):
+    fY, fI, fQ = fYIQ
+
+    if type == "ntsc-1953":
+        fR = fY + 0.956 * fI + 0.619 * fQ
+        fG = fY - 0.272 * fI - 0.647 * fQ
+        fB = fY - 1.106 * fI + 1.703 * fQ
+    elif type == "smpte-c":
+        fR = fY + 0.9469 * fI + 0.6236 * fQ
+        fG = fY - 0.2748 * fI - 0.6357 * fQ
+        fB = fY - 1.1    * fI + 1.7    * fQ
+    else:
+        raise ValueError(f"Conversion method {type} not supported!")
+
+    return (fR, fG, fB)
+
+
 def generate_yiq_v1(img_data):
     """ Generate YIQ image, v1, given image pixels and size """
 
@@ -126,12 +160,9 @@ def generate_yiq_v1(img_data):
 
     for y in range(0, img_size[1]):
         for x in range(0, img_size[0]):
-            r, g, b = tuple(i / 255 for i in img_pix[x, y])
+            fRGB = tuple(i / 255 for i in img_pix[x, y])
 
-            fY = r * 0.30 + g * 0.59 + b * 0.11
-            fI = r * 0.599 - g * 0.2773 - b * 0.3217
-            fQ = r * 0.213 - g * 0.5251 + b * 0.3121
-            
+            fY, fI, fQ = rgb2yiq(fRGB, "smpte-c")
             yiq_t = (fY, (fI + 0.5957), (fQ + 0.5226))
 
             yiq_data.extend(pack('<bbb', *(round(i * 100) for i in yiq_t)))
@@ -169,15 +200,13 @@ def generate_rgb_v1(img_data):
         for x in range(0, img_size[0]):
             idx = (y * img_size[0] + x) * 3
 
-            cy = img_pix[idx] / 100.0
-            ci = (img_pix[idx + 1] / 100.0) - 0.5957
-            cq = (img_pix[idx + 2] / 100.0) - 0.5226
+            cY = img_pix[idx] / 100.0
+            cI = (img_pix[idx + 1] / 100.0) - 0.5957
+            cQ = (img_pix[idx + 2] / 100.0) - 0.5226
 
-            fR = cy + ci * 0.9469 + cq * 0.6236
-            fG = cy - ci * 0.2748 - cq * 0.6357
-            fB = cy - ci * 1.1 + cq * 1.7
-
+            fR, fG, fB = yiq2rgb((cY, cI, cQ), "smpte-c")
             rgb_t = tuple(round(i * 255) for i in (fR, fG, fB))
+
             rgb_data["data"].append(rgb_t)
 
     logging.info("Image processed!")
