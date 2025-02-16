@@ -118,6 +118,13 @@ def generate_yiq_v1(img_data):
     return yiq_data
 
 
+def write_yiq(img_converted, imgdest_path):
+    """ Write YIQ file given raw file data and destination path. """
+    imgdest = smart_open(f"{imgdest_path}", imgdest_path == "-")
+    imgdest.write(img_converted)
+    smart_close(imgdest)
+
+
 def get_image_data_yiq(imgsrc):
     """ Opens the image as YIQ and extracts its properties, if possible. """
 
@@ -141,7 +148,8 @@ def get_image_data_pillow(imgsrc):
         "format": img.format,
         "size": img.size,
         "data": img_rgb.load(),
-        "convert_fn": generate_yiq_v1
+        "generate_fn": generate_yiq_v1,
+        "write_fn": write_yiq
     }
 
 
@@ -165,6 +173,12 @@ def get_image_data(imgsrc):
     return None
 
 
+def process_img(img_data, imgdest_path):
+    """ Process image given source data and destination. """
+    img_converted = img_data["generate_fn"](img_data)
+    img_data["write_fn"](img_converted, imgdest_path)
+
+
 def main():
     """ Main program entrypoint """
 
@@ -186,10 +200,8 @@ def main():
         if img_data is None:
             raise TypeError("Source image could not be opened!")
 
-        imgdest = smart_open(f"{args.imgdest}", args.imgdest == "-")
-        imgdest.write(img_data["convert_fn"](img_data))
-        smart_close(imgdest)
-        
+        process_img(img_data, args.imgdest)
+
         logging.info("Completed!")
     except Exception as e:
         logging.error("Error processing image!")
