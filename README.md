@@ -42,13 +42,16 @@ How to use
 
 From a terminal, type the following:
 
-    ./rgb2yiq.py [-h] [-q] [-v] [-l] [-e] infile (outfile | -t type)
+    ./rgb2yiq.py [-hqvle] [-m (ntsc-1953 | smpte-c)] infile (outfile | -t type)
 
 - Option `-h` displays a help message.
 - Option `-q` prevents messages from appearing (only outputs errors).
 - Option `-v` prints version number.
 - Option `-l` shows license information.
 - Option `-e` shows supported output extensions to use with `-t`.
+- Option `-m` chooses a colorimetry method to use:
+  * Value `ntsc-1953` uses the original NTSC color specification of 1953.
+  * Value `smpte-c` uses the SMPTE C standard, adopted in 1987. This is the default.
 - Mandatory parameter `infile` is the input filename.
 - Selectable parameter `outfile` is the output file name (omitting it sends output to stdout).
 - Selectable option `-t` defines output file type to emit to `stdout`.
@@ -63,22 +66,27 @@ File structure
 
 A YIQ file has the following structure, regardless of where it has been written (to a file or standard output).
 
-1. The first 4 bytes indicate filetype magic number (the string `YIQ1` is used for valid YIQ images).
-2. Following the magic number, width and height of the image are stored as 4-byte, little-endian numbers.
-3. Then comes the string `DATA` (4 bytes long), indicating where the actual YIQ data starts.
-4. Finally, in sequential order, triplets of $(Y, I, Q)$ bytes are stored for each point in the image, ajusted to the following:
-    - All $Y$, $I$, and $Q$ values are multiplied by 100, then rounded, prior to saving.
-    - Y value domain after rounding: $0 <= Y <= 100$.
-    - I value domain after rounding: $0 <= I <= 119$ (with pre-multiply translation of $0.5957$).
-    - Q value domain after rounding: $0 <= Q <= 105$ (with pre-multiply translation of $0.5226$).
+1. The first 3 bytes indicate filetype magic number (the string `YIQ` is used for valid YIQ images).
+2. Following the magic number, a byte number indicates the image version, currently at `1`.
+3. Then a byte is used to indicate the colorimetry method used to generate the file.
+   * If the value is `0`, the file uses the `ntsc-1953` method.
+   * If the value is `1`, the file uses the `smpte-c` method.
+4. Following are the width and height of the image, each value stored as a 4-byte, little-endian number.
+5. Then comes the string `DATA` (4 bytes long), indicating where the actual YIQ data starts.
+6. Finally, in sequential order, triplets of $(Y, I, Q)$ bytes are stored for each point in the image, ajusted to the following:
+   - All $Y$, $I$, and $Q$ values are multiplied by 100, then rounded, prior to saving.
+   - Y value domain after rounding: $0 <= Y <= 100$.
+   - I value domain after rounding: $0 <= I <= 119$ (with pre-multiply translation of $0.5957$).
+   - Q value domain after rounding: $0 <= Q <= 105$ (with pre-multiply translation of $0.5226$).
 
 To Do
 =====
 
 1. ~~Implement reverse-direction conversion: from YIQ to image files.~~
-2. Allow for selection of image format for inverse conversion, when outputting to `stdout`.
-3. Allow native compression to generated files (requires changes in file structure). This issue can be partially addressed by sending to stdout and piping to any compression utility like `gzip`.
-4. Use `numpy` to vectorize process and allow for faster conversion.
+2. ~~Allow for selection of image format for inverse conversion, when outputting to `stdout`.~~
+3. ~~Allow for colorimetry method selection, between original NTSC 1953 and SMPTE C.~~
+4. Allow native compression to generated files (requires changes in file structure). This issue can be partially addressed by sending to stdout and piping to any compression utility like `gzip`.
+5. Use `numpy` to vectorize process and allow for faster conversion.
 
 License
 =======
