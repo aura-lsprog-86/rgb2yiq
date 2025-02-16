@@ -125,10 +125,87 @@ def write_yiq(img_converted, imgdest_path):
     smart_close(imgdest)
 
 
+def generate_rgb_v1(img_data):
+    """ Obtain RGB data and other information from YIQ file data. """
+
+    img_pix = img_data["data"]
+    img_size = img_data["size"]
+
+    logging.info("Gathering header information...")
+
+    rgb_data = {
+        "size": img_size,
+        "data": []
+    }
+
+    logging.info("Processing triplets...")
+
+    for y in range(0, img_size[1]):
+        for x in range(0, img_size[0]):
+            idx = (y * img_size[0] + x) * 3
+
+            cy = img_pix[idx] / 100.0
+            ci = (img_pix[idx + 1] / 100.0) - 0.5957
+            cq = (img_pix[idx + 2] / 100.0) - 0.5226
+
+            fR = cy + ci * 0.9469 + cq * 0.6236
+            fG = cy - ci * 0.2748 - cq * 0.6357
+            fB = cy - ci * 1.1 + cq * 1.7
+
+            rgb_t = tuple(round(i * 255) for i in (fR, fG, fB))
+            rgb_data["data"].append(rgb_t)
+
+    logging.info("Image processed!")
+
+    return rgb_data
+
+
+def write_rgb(img_converted, imgdest_path):
+    """ Write image file given structured RGB data and destination path. """
+    imgdest = Image.new('RGB', img_converted["size"])
+    imgdest.putdata(img_converted["data"])
+
+    if imgdest_path == '-':
+        # TODO: Get from the user the desired format for piped output.
+        imgdest.save(sys.stdout, 'png')
+    else:
+        imgdest.save(imgdest_path)
+
+
 def get_image_data_yiq(imgsrc):
     """ Opens the image as YIQ and extracts its properties, if possible. """
 
-    return None
+    format = None
+    w, h = (0, 0)
+    data = None
+
+    try:
+        with open(imgsrc, "rb") as fp:
+            format = fp.read(4).decode('utf-8')
+            if format != "YIQ1":
+                return None
+
+            w, h = unpack("<LL", fp.read(8))
+
+            dmark = fp.read(4).decode('utf-8')
+            if dmark != 'DATA':
+                return None
+
+            data = fp.read()
+    except:
+        return None
+
+    if len(data) != (w * h) * 3:
+        return None
+
+    return {
+        "path": imgsrc,
+        "format": format,
+        "size": (w, h),
+        "data": data,
+        "generate_fn": generate_rgb_v1,
+        "write_fn": write_rgb
+    }
 
 
 def get_image_data_pillow(imgsrc):
