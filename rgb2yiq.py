@@ -50,6 +50,7 @@ def configure_logger(quiet):
         level=logging.ERROR if quiet else logging.INFO
     )
 
+
 def smart_open(fname, use_stdout=False):
     """ Determine whether output should be a file or stdout """
     if use_stdout:
@@ -84,8 +85,11 @@ class show_license(argparse.Action):
         parser.exit()
 
 
-def generate_yiq_v1(img_pix, img_size):
+def generate_yiq_v1(img_data):
     """ Generate YIQ image, v1, given image pixels and size """
+
+    img_pix = img_data["data"]
+    img_size = img_data["size"]
 
     yiq_data = bytearray()
 
@@ -112,6 +116,53 @@ def generate_yiq_v1(img_pix, img_size):
     return yiq_data
 
 
+def get_image_data_yiq(imgsrc):
+    """ Opens the image as YIQ and extracts its properties, if possible. """
+
+    return None
+
+
+def get_image_data_pillow(imgsrc):
+    """ Opens the image and extracts its properties, via Pillow. """
+
+    img = Image.open(imgsrc)
+
+    logging.info(f"Name: {imgsrc}")
+    logging.info(f"Format: {img.format}")
+    logging.info(f"Size: {img.size[0]} X {img.size[1]}")
+    logging.info(f"Colour model: {img.mode}\n")
+
+    img_rgb = img if img.mode == 'RGB' else img.convert('RGB')
+
+    return {
+        "path": imgsrc,
+        "format": img.format,
+        "size": img.size,
+        "data": img_rgb.load(),
+        "convert_fn": generate_yiq_v1
+    }
+
+
+def get_image_data(imgsrc):
+    """ Opens the image and extracts its properties.
+    
+    Supports either YIQ files or the formats supported by Pillow.
+    """
+
+    options = [
+        get_image_data_yiq,
+        get_image_data_pillow
+    ]
+
+    for opt in options:
+        img_data = opt(imgsrc)
+
+        if img_data is not None:
+            return img_data
+
+    return None
+
+
 def main():
     """ Main program entrypoint """
 
@@ -128,29 +179,19 @@ def main():
         exit(1)
     
     # Process image with given arguments
-    img = Image.open(imgsrc)
-
-    logging.info(f"Name: {imgsrc}")
-    logging.info(f"Format: {img.format}")
-    logging.info(f"Size: {img.size[0]} X {img.size[1]}")
-    logging.info(f"Colour model: {img.mode}\n")
-
-    if img.mode == 'RGB':
-        img_rgb = img
-    else:
-        img_rgb = img.convert('RGB')
-    
     try:
-        imgdest = smart_open(f"{args.imgdest}", args.imgdest == "-")
-        pix = img_rgb.load()
+        img_data = get_image_data(imgsrc)
+        if img_data is None:
+            raise TypeError("Source image could not be opened!")
 
-        imgdest.write(generate_yiq_v1(pix, img.size))
-        
+        imgdest = smart_open(f"{args.imgdest}", args.imgdest == "-")
+        imgdest.write(img_data["convert_fn"](img_data))
         smart_close(imgdest)
         
         logging.info("Completed!")
-    except:
-        logging.error("Can't create output file!")
+    except Exception as e:
+        logging.error("Error processing image!")
+        logging.error(f"Reason: {e}")
 
 
 if __name__ == "__main__":
