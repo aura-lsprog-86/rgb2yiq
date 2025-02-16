@@ -72,9 +72,10 @@ A YIQ file has the following structure, regardless of where it has been written 
 To Do
 =====
 
-1. Implement reverse-direction conversion: from YIQ to image files.
-2. Allow native compression to generated files (requires changes in file structure). This issue can be partially addressed by sending to stdout and piping to any compression utility like `gzip`.
-3. Use `numpy` to vectorize process and allow for faster conversion.
+1. ~~Implement reverse-direction conversion: from YIQ to image files.~~
+2. Allow for selection of image format for inverse conversion, when outputting to `stdout`.
+3. Allow native compression to generated files (requires changes in file structure). This issue can be partially addressed by sending to stdout and piping to any compression utility like `gzip`.
+4. Use `numpy` to vectorize process and allow for faster conversion.
 
 License
 =======
