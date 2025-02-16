@@ -26,7 +26,7 @@ import argparse
 from struct import *
 from PIL import Image
 
-version = "1.3.0"
+version = "1.4.0"
 
 
 def get_writable_img_extensions():
