@@ -42,14 +42,17 @@ How to use
 
 From a terminal, type the following:
 
-    ./rgb2yiq.py [-h] [-q] [-v] [-l] infile [outfile]
+    ./rgb2yiq.py [-h] [-q] [-v] [-l] [-e] infile (outfile | -t type)
 
 - Option `-h` displays a help message.
 - Option `-q` prevents messages from appearing (only outputs errors).
 - Option `-v` prints version number.
 - Option `-l` shows license information.
-- Mandatory argument `infile` is the input filename
-- Optional argument `outfile` is the output file (omitting it sends output to stdout).
+- Option `-e` shows supported output extensions to use with `-t`.
+- Mandatory parameter `infile` is the input filename.
+- Selectable parameter `outfile` is the output file name (omitting it sends output to stdout).
+- Selectable option `-t` defines output file type to emit to `stdout`.
+- Parameters `outfile` and `-t` are mutually exclusive: only one of them can be given at a time.
 
 It currently supports any image type supported by Pillow.
 
@@ -63,7 +66,7 @@ A YIQ file has the following structure, regardless of where it has been written 
 1. The first 4 bytes indicate filetype magic number (the string `YIQ1` is used for valid YIQ images).
 2. Following the magic number, width and height of the image are stored as 4-byte, little-endian numbers.
 3. Then comes the string `DATA` (4 bytes long), indicating where the actual YIQ data starts.
-4. Finally, in sequential order, triplets of (Y, I, Q) bytes are stored for each point in the image, ajusted to the following:
+4. Finally, in sequential order, triplets of $(Y, I, Q)$ bytes are stored for each point in the image, ajusted to the following:
     - All $Y$, $I$, and $Q$ values are multiplied by 100, then rounded, prior to saving.
     - Y value domain after rounding: $0 <= Y <= 100$.
     - I value domain after rounding: $0 <= I <= 119$ (with pre-multiply translation of $0.5957$).
