@@ -109,7 +109,9 @@ def generate_yiq_v1(img_data):
             fI = r * 0.599 - g * 0.2773 - b * 0.3217
             fQ = r * 0.213 - g * 0.5251 + b * 0.3121
             
-            yiq_data.extend(pack('<bbb', *(round(i * 100) for i in (fY, fI, fQ))))
+            yiq_t = (fY, (fI + 0.5957), (fQ + 0.5226))
+
+            yiq_data.extend(pack('<bbb', *(round(i * 100) for i in yiq_t)))
 
     logging.info("Image processed!")
 
