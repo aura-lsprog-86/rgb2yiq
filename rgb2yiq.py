@@ -48,10 +48,11 @@ def parse_args():
     parser.add_argument('-v', '--version', action='version', version=f"%(prog)s\tv{version}")
     parser.add_argument('-l', '--license', nargs=0, action=show_license, help="show license information and exit")
     parser.add_argument('-e', '--extensions', nargs=0, action=show_extensions, help="show supported extensions")
+    parser.add_argument('-m', '--method', choices=["ntsc-1953", "smpte-c"], help="colorimetry method to use", default="auto")
 
     grp_out = parser.add_mutually_exclusive_group()
     grp_out.add_argument('imgdest', nargs='?', help="Output image filename, let empty to stdout", default='-', metavar='outfile')
-    grp_out.add_argument('-t', '--type', choices=get_writable_img_extensions(), help="Output image type to emit to stdout")
+    grp_out.add_argument('-t', '--type', choices=get_writable_img_extensions(), help="output image type to emit to stdout")
 
     return parser.parse_args()
 
@@ -142,7 +143,7 @@ def yiq2rgb(fYIQ, type):
     return (fR, fG, fB)
 
 
-def generate_yiq_v1(img_data):
+def generate_yiq_v1(img_data, method):
     """ Generate YIQ image, v1, given image pixels and size """
 
     img_pix = img_data["data"]
@@ -150,24 +151,35 @@ def generate_yiq_v1(img_data):
 
     yiq_data = bytearray()
 
-    logging.info("Writing header information...")
+    logging.info("  Writing header information...")
 
-    yiq_data.extend("YIQ1".encode('utf-8'))
+    yiq_data.extend("YIQ".encode('utf-8'))
+    yiq_data.extend(pack("<b", 1))
+
+    if method == "auto":
+        method_use = "smpte-c"
+        logging.warning(f"  Assuming colorimetry method \"{method_use}\"!")
+    else:
+        method_use = method
+
+    logging.info(f"  Colorimetry method: {method_use}")
+    yiq_data.extend(pack("<b", 1 if method_use == "smpte-c" else 0))
+
     yiq_data.extend(pack('<LL', *img_size))
     yiq_data.extend("DATA".encode('utf-8'))
 
-    logging.info("Processing pixels...")
+    logging.info("  Processing pixels...")
 
     for y in range(0, img_size[1]):
         for x in range(0, img_size[0]):
             fRGB = tuple(i / 255 for i in img_pix[x, y])
 
-            fY, fI, fQ = rgb2yiq(fRGB, "smpte-c")
+            fY, fI, fQ = rgb2yiq(fRGB, method_use)
             yiq_t = (fY, (fI + 0.5957), (fQ + 0.5226))
 
             yiq_data.extend(pack('<bbb', *(round(i * 100) for i in yiq_t)))
 
-    logging.info("Image processed!")
+    logging.info("  Image processed!")
 
     return yiq_data
 
@@ -181,20 +193,28 @@ def write_yiq(img_converted, imgdest_props):
     smart_close(imgdest)
 
 
-def generate_rgb_v1(img_data):
+def generate_rgb_v1(img_data, method):
     """ Obtain RGB data and other information from YIQ file data. """
 
     img_pix = img_data["data"]
     img_size = img_data["size"]
 
-    logging.info("Gathering header information...")
+    logging.info("  Gathering header information...")
 
     rgb_data = {
         "size": img_size,
         "data": []
     }
 
-    logging.info("Processing triplets...")
+    logging.info("  Processing triplets...")
+
+    if method != "auto" and method != img_data["color"]:
+        method_use = method
+        logging.warning(f"  Colorimetry method override! \"{method}\" instead of \"{img_data['color']}\"")
+    else:
+        method_use = img_data["color"]
+
+    logging.info(f"  Colorimetry method: {method_use}")
 
     for y in range(0, img_size[1]):
         for x in range(0, img_size[0]):
@@ -204,12 +224,12 @@ def generate_rgb_v1(img_data):
             cI = (img_pix[idx + 1] / 100.0) - 0.5957
             cQ = (img_pix[idx + 2] / 100.0) - 0.5226
 
-            fR, fG, fB = yiq2rgb((cY, cI, cQ), "smpte-c")
+            fR, fG, fB = yiq2rgb((cY, cI, cQ), method_use)
             rgb_t = tuple(round(i * 255) for i in (fR, fG, fB))
 
             rgb_data["data"].append(rgb_t)
 
-    logging.info("Image processed!")
+    logging.info("  Image processed!")
 
     return rgb_data
 
@@ -237,9 +257,19 @@ def get_image_data_yiq(imgsrc):
 
     try:
         with open(imgsrc, "rb") as fp:
-            format = fp.read(4).decode('utf-8')
-            if format != "YIQ1":
+            format = fp.read(3).decode('utf-8')
+            if format != "YIQ":
                 return None
+            
+            file_ver = int.from_bytes(fp.read(1))
+            if file_ver != 1:
+                raise ValueError(f"YIQ file version \"{file_ver}\" currently not supported!")
+            
+            method = int.from_bytes(fp.read(1))
+            if not method in [0, 1]:
+                raise ValueError(f"Colorimetry method \"{method}\" not supported!")
+            
+            method = "smpte-c" if method == 1 else "ntsc-1953"
 
             w, h = unpack("<LL", fp.read(8))
 
@@ -258,6 +288,7 @@ def get_image_data_yiq(imgsrc):
         "path": imgsrc,
         "format": format,
         "size": (w, h),
+        "color": method,
         "data": data,
         "generate_fn": generate_rgb_v1,
         "write_fn": write_rgb
@@ -268,18 +299,13 @@ def get_image_data_pillow(imgsrc):
     """ Opens the image and extracts its properties, via Pillow. """
 
     img = Image.open(imgsrc)
-
-    logging.info(f"Name: {imgsrc}")
-    logging.info(f"Format: {img.format}")
-    logging.info(f"Size: {img.size[0]} X {img.size[1]}")
-    logging.info(f"Colour model: {img.mode}\n")
-
     img_rgb = img if img.mode == 'RGB' else img.convert('RGB')
 
     return {
         "path": imgsrc,
         "format": img.format,
         "size": img.size,
+        "color": img.mode,
         "data": img_rgb.load(),
         "generate_fn": generate_yiq_v1,
         "write_fn": write_yiq
@@ -301,6 +327,12 @@ def get_image_data(imgsrc):
         img_data = opt(imgsrc)
 
         if img_data is not None:
+            logging.info("Image detected!")
+            logging.info(f"  Name: {img_data['path']}")
+            logging.info(f"  Format: {img_data['format']}")
+            logging.info(f"  Size: {img_data['size'][0]} x {img_data['size'][1]} px")
+            logging.info(f"  Colour model: {img_data['color']}")
+
             return img_data
 
     return None
@@ -308,7 +340,9 @@ def get_image_data(imgsrc):
 
 def process_img(img_data, imgdest_props):
     """ Process image given source data and destination. """
-    img_converted = img_data["generate_fn"](img_data)
+    logging.info("Starting conversion...")
+
+    img_converted = img_data["generate_fn"](img_data, imgdest_props["method"])
     img_data["write_fn"](img_converted, imgdest_props)
 
 
@@ -335,7 +369,8 @@ def main():
 
         imgdest_props = {
             "path": args.imgdest,
-            "type": args.type
+            "type": args.type,
+            "method": args.method
         }
 
         process_img(img_data, imgdest_props)
