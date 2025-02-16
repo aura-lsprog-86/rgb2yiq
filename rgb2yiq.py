@@ -29,16 +29,29 @@ from PIL import Image
 version = "1.3.0"
 
 
+def get_writable_img_extensions():
+    """ Get Pillow supported extensions.
+
+    Based on https://stackoverflow.com/a/71114152.
+    """
+    exts = Image.registered_extensions()
+    return [ex[1:] for ex, f in exts.items() if f in Image.SAVE]
+
+
 def parse_args():
     """ Prepare the argument parser """
     parser = argparse.ArgumentParser(description="Converts an image into its YIQ equivalent.")
 
     parser.add_argument('imgsrc', help="Input image file to be processed", metavar='infile')
-    parser.add_argument('imgdest', nargs='?', help="Output image basename, let empty to output to stdout", default='-', metavar='outfile')
     
     parser.add_argument('-q', '--quiet', action='store_true', help="don't output operation details, only errors")
     parser.add_argument('-v', '--version', action='version', version=f"%(prog)s\tv{version}")
     parser.add_argument('-l', '--license', nargs=0, action=show_license, help="show license information and exit")
+    parser.add_argument('-e', '--extensions', nargs=0, action=show_extensions, help="show supported extensions")
+
+    grp_out = parser.add_mutually_exclusive_group()
+    grp_out.add_argument('imgdest', nargs='?', help="Output image filename, let empty to stdout", default='-', metavar='outfile')
+    grp_out.add_argument('-t', '--type', choices=get_writable_img_extensions(), help="Output image type to emit to stdout")
 
     return parser.parse_args()
 
@@ -85,6 +98,16 @@ class show_license(argparse.Action):
         parser.exit()
 
 
+class show_extensions(argparse.Action):
+    """ Define custom action that shows supported output extensions """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print("Supported extensions:")
+        print(", ".join(get_writable_img_extensions()))
+
+        parser.exit()
+
+
 def generate_yiq_v1(img_data):
     """ Generate YIQ image, v1, given image pixels and size """
 
@@ -118,8 +141,10 @@ def generate_yiq_v1(img_data):
     return yiq_data
 
 
-def write_yiq(img_converted, imgdest_path):
+def write_yiq(img_converted, imgdest_props):
     """ Write YIQ file given raw file data and destination path. """
+    imgdest_path = imgdest_props["path"]
+    
     imgdest = smart_open(f"{imgdest_path}", imgdest_path == "-")
     imgdest.write(img_converted)
     smart_close(imgdest)
@@ -160,14 +185,16 @@ def generate_rgb_v1(img_data):
     return rgb_data
 
 
-def write_rgb(img_converted, imgdest_path):
+def write_rgb(img_converted, imgdest_props):
     """ Write image file given structured RGB data and destination path. """
     imgdest = Image.new('RGB', img_converted["size"])
     imgdest.putdata(img_converted["data"])
 
+    imgdest_path = imgdest_props["path"]
+    imgdest_type = imgdest_props["type"]
+
     if imgdest_path == '-':
-        # TODO: Get from the user the desired format for piped output.
-        imgdest.save(sys.stdout, 'png')
+        imgdest.save(sys.stdout, imgdest_type)
     else:
         imgdest.save(imgdest_path)
 
@@ -250,10 +277,10 @@ def get_image_data(imgsrc):
     return None
 
 
-def process_img(img_data, imgdest_path):
+def process_img(img_data, imgdest_props):
     """ Process image given source data and destination. """
     img_converted = img_data["generate_fn"](img_data)
-    img_data["write_fn"](img_converted, imgdest_path)
+    img_data["write_fn"](img_converted, imgdest_props)
 
 
 def main():
@@ -277,7 +304,12 @@ def main():
         if img_data is None:
             raise TypeError("Source image could not be opened!")
 
-        process_img(img_data, args.imgdest)
+        imgdest_props = {
+            "path": args.imgdest,
+            "type": args.type
+        }
+
+        process_img(img_data, imgdest_props)
 
         logging.info("Completed!")
     except Exception as e:
