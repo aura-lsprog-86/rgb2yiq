@@ -49,7 +49,7 @@ From a terminal, type the following:
 - Option `-v` prints version number.
 - Option `-l` shows license information.
 - Mandatory argument `infile` is the input filename
-- Optional argument `outfile` is the output file (ommitting it sends output to stdout).
+- Optional argument `outfile` is the output file (omitting it sends output to stdout).
 
 It currently supports any image type supported by Pillow.
 
@@ -64,8 +64,10 @@ A YIQ file has the following structure, regardless of where it has been written 
 2. Following the magic number, width and height of the image are stored as 4-byte, little-endian numbers.
 3. Then comes the string `DATA` (4 bytes long), indicating where the actual YIQ data starts.
 4. Finally, in sequential order, triplets of (Y, I, Q) bytes are stored for each point in the image, ajusted to the following:
-    - Y value is stored as an integer, $0 <= Y <= 100$
-    - I and Q are rounded and stored as integers, $0 <= I, Q <= 255$
+    - All $Y$, $I$, and $Q$ values are multiplied by 100, then rounded, prior to saving.
+    - Y value domain after rounding: $0 <= Y <= 100$.
+    - I value domain after rounding: $0 <= I <= 119$ (with pre-multiply translation of $0.5957$).
+    - Q value domain after rounding: $0 <= Q <= 105$ (with pre-multiply translation of $0.5226$).
 
 To Do
 =====
